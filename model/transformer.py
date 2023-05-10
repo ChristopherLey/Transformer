@@ -17,7 +17,7 @@ class Head(nn.Module):
         self.head_size = head_size
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         B, T, C = x.shape
         # H = head_size
         k = self.key(x)     # (B, T, C) @ (C, H)--> (B, T, H)
@@ -54,7 +54,7 @@ class MultiHeadAttention(nn.Module):
         self.projection = nn.Linear(head_size*num_heads, output_dim)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x = torch.cat([head(x) for head in self.heads], dim=-1)     # (B, T, num_heads*head_size)
         x = self.projection(x)
         return self.dropout(x)
@@ -82,7 +82,7 @@ class FeedForward(nn.Module):
             nn.Dropout(dropout)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         return self.ff(x)
 
 
@@ -97,7 +97,7 @@ class Block(nn.Module):
         self.norm2 = nn.LayerNorm(input_size)
         self.feed_forward = FeedForward(input_size, hidden_dim=input_size*4, dropout=dropout)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x = x + self.self_attention(self.norm1(x))
         x = x + self.feed_forward(self.norm2(x))
         return x
@@ -147,7 +147,7 @@ class TransformerDecoder(nn.Module):
 
         return logits, loss
 
-    def generate(self, idx, max_new_tokens):
+    def generate(self, idx: torch.LongTensor, max_new_tokens: int):
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
             # crop idx to the last block_size token
@@ -166,7 +166,7 @@ class TransformerDecoder(nn.Module):
 
 
 if __name__ == '__main__':
-    from datareader import TinyShakespeare
+    from data.datareader import TinyShakespeare
     reader = TinyShakespeare('input.txt')
     sample = reader[0]
     xb = sample['input'].view(1, -1)

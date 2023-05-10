@@ -1,4 +1,5 @@
 import pytorch_lightning as pl
+import torch
 from torch.optim import Adam
 from model.transformer import TransformerDecoder
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
@@ -24,18 +25,18 @@ class Transformer_Experiment(pl.LightningModule):
             dropout=dropout
         )
 
-    def get_word_list(self, index):
+    def get_word_list(self, index: torch.LongTensor):
         word_list = []
         for i in range(index.shape[0]):
             word_list.append(self.ix_to_word[index[i].item()])
         return word_list
 
-    def training_step(self, sample, sample_idx):
+    def training_step(self, sample: dict, sample_idx: int):
         logits, loss = self.model(sample['input'].to(self.device), sample['target'].to(self.device))
         self.log("train_loss", loss.item(), prog_bar=True)
         return loss
 
-    def validation_step(self, sample, sample_idx):
+    def validation_step(self, sample: dict, sample_idx: int):
         logits, loss = self.model(sample['input'].to(self.device), sample['target'].to(self.device))
         self.log("val_loss", loss.item(), prog_bar=True)
 
