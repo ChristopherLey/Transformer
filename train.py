@@ -1,4 +1,8 @@
-import torch
+import argparse
+import yaml
+import sys
+import os
+from pprint import pprint
 from datetime import datetime
 from pathlib import Path
 import pytorch_lightning as pl
@@ -9,57 +13,101 @@ from torch.utils.data import DataLoader
 from data.datareader import TinyShakespeare
 
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+def main():
+    parser = argparse.ArgumentParser(description="Generic runner for Transformer")
+    parser.add_argument(
+        "--config",
+        "-c",
+        dest="filename",
+        metavar="FILE",
+        help="path to the config file",
+        default="config.yaml",
+    )
+    args = parser.parse_args()
+    with open(args.filename, "r") as file:
+        try:
+            config = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            print(exc)
 
-batch_size = 256
-epochs = 2
-lr = 3e-4
-data = Path('./data/input.txt')
-block_size = 256
-num_heads = 8
-embedding_dim = 64*num_heads
-num_blocks = 6
+    if hasattr(sys, "gettrace") and sys.gettrace() is not None:
+        print("Debugging Mode")
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        config["num_workers"] = 0
 
+    data = Path(config['data_path'])
 
-train_reader = TinyShakespeare(data, version='train', block_size=block_size)
-train_dataloader = DataLoader(train_reader, shuffle=True, batch_size=batch_size, drop_last=False, num_workers=12)
-val_reader = TinyShakespeare(data, version='val', block_size=block_size)
-val_dataloader = DataLoader(val_reader, shuffle=False, batch_size=batch_size, drop_last=False, num_workers=12)
-
-model = Transformer_Experiment(
-    vocab_size=train_reader.vocab_size,
-    embedding_dim=embedding_dim,
-    block_size=train_reader.block_size,
-    num_heads=num_heads,
-    num_blocks=num_blocks,
-    dropout=0.5
-)
-
-loss_callback = ModelCheckpoint(
-        monitor="val_loss",
-        save_top_k=4,
-        mode="min",
-        filename="model-{epoch:02d}-{val_loss:.6f}",
+    train_reader = TinyShakespeare(
+        data,
+        version='train',
+        block_size=config['block_size']
+    )
+    train_dataloader = DataLoader(
+        train_reader,
+        shuffle=True,
+        batch_size=config['batch_size'],
+        drop_last=False,
+        num_workers=12
+    )
+    val_reader = TinyShakespeare(
+        data,
+        version='val',
+        block_size=config['block_size']
+    )
+    val_dataloader = DataLoader(
+        val_reader,
+        shuffle=False,
+        batch_size=config['batch_size'],
+        drop_last=False,
+        num_workers=12
     )
 
-callbacks = [loss_callback, ]
-
-version_path = (
-        f"LM-Transformer-{datetime.now().strftime('%d-%m_%H:%M:%S')}"
+    model = Transformer_Experiment(
+        vocab_size=train_reader.vocab_size,
+        embedding_dim=config["embedding_dim"],
+        block_size=train_reader.block_size,
+        num_heads=config["num_heads"],
+        num_blocks=config["num_blocks"],
+        dropout=0.5
     )
 
-tb_logger = pl_loggers.TensorBoardLogger(
-    save_dir=Path("."),
-    version=version_path,
-)
+    loss_callback = ModelCheckpoint(
+            monitor="val_loss",
+            save_top_k=4,
+            mode="min",
+            filename="model-{epoch:02d}-{val_loss:.6f}",
+        )
 
-trainer = pl.Trainer(
-    accelerator='gpu',
-    devices=[0],
-    logger=tb_logger,
-    callbacks=callbacks,
-    max_epochs=30,
-    log_every_n_steps=1
-)
+    callbacks = [loss_callback, ]
 
-trainer.fit(model, train_dataloader, val_dataloader)
+    version_path = (
+            f"LM-Transformer-{datetime.now().strftime('%d-%m_%H:%M:%S')}"
+        )
+
+    tb_logger = pl_loggers.TensorBoardLogger(
+        save_dir=Path("."),
+        version=version_path,
+    )
+
+    trainer = pl.Trainer(
+        accelerator='gpu',
+        devices=[0],
+        logger=tb_logger,
+        callbacks=callbacks,
+        max_epochs=30,
+        log_every_n_steps=1
+    )
+
+    pprint(config)
+    for key, value in config.items():
+        trainer.logger.experiment.add_text(key, str(value), global_step=0)
+
+    log_path = Path(tb_logger.log_dir)
+    with open(log_path / "config.yaml", "w") as yml_file:
+        yaml.dump(config, yml_file, default_flow_style=False)
+
+    trainer.fit(model, train_dataloader, val_dataloader)
+
+
+if __name__ == "__main__":
+    main()
