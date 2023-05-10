@@ -6,7 +6,7 @@ Simply run
     
     python train.py
 
-to train the model. If you want to run the model with a different configuration simple specify
+to train the model. If you want to run the model with a different configuration simply specify
 
     python train.py --config ./path/to/config.yaml
 
