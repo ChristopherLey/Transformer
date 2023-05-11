@@ -4,7 +4,14 @@ by Christopher Ley
 
 How to use
 ----------
-Simply run: 
+To replicate the environment I used you can install it from the environment.yml file:
+~~~console
+conda env create -f ./environment.yml
+~~~
+This is not necessary if you already have an environment with the required dependencies 
+(The main ones being: _pytorch_, _pytorch-lightning_, _pyyaml_) 
+
+Once you have a valid environment, you can simply run: 
 ~~~console
 python train.py
 ~~~
