@@ -1,16 +1,18 @@
 import argparse
-import yaml
-import sys
 import os
-from pprint import pprint
+import sys
 from datetime import datetime
 from pathlib import Path
+from pprint import pprint
+
 import pytorch_lightning as pl
+import yaml
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
-from model.transformer_experiment import Transformer_Experiment
 from torch.utils.data import DataLoader
+
 from data.datareader import TinyShakespeare
+from model.transformer_experiment import Transformer_Experiment
 
 
 def main():
@@ -35,31 +37,25 @@ def main():
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
         config["num_workers"] = 0
 
-    data = Path(config['data_path'])
+    data = Path(config["data_path"])
 
     train_reader = TinyShakespeare(
-        data,
-        version='train',
-        block_size=config['block_size']
+        data, version="train", block_size=config["block_size"]
     )
     train_dataloader = DataLoader(
         train_reader,
         shuffle=True,
-        batch_size=config['batch_size'],
+        batch_size=config["batch_size"],
         drop_last=False,
-        num_workers=12
+        num_workers=12,
     )
-    val_reader = TinyShakespeare(
-        data,
-        version='val',
-        block_size=config['block_size']
-    )
+    val_reader = TinyShakespeare(data, version="val", block_size=config["block_size"])
     val_dataloader = DataLoader(
         val_reader,
         shuffle=False,
-        batch_size=config['batch_size'],
+        batch_size=config["batch_size"],
         drop_last=False,
-        num_workers=12
+        num_workers=12,
     )
 
     model = Transformer_Experiment(
@@ -68,21 +64,21 @@ def main():
         block_size=train_reader.block_size,
         num_heads=config["num_heads"],
         num_blocks=config["num_blocks"],
-        dropout=0.5
+        dropout=0.5,
     )
 
     loss_callback = ModelCheckpoint(
-            monitor="val_loss",
-            save_top_k=4,
-            mode="min",
-            filename="model-{epoch:02d}-{val_loss:.6f}",
-        )
+        monitor="val_loss",
+        save_top_k=4,
+        mode="min",
+        filename="model-{epoch:02d}-{val_loss:.6f}",
+    )
 
-    callbacks = [loss_callback, ]
+    callbacks = [
+        loss_callback,
+    ]
 
-    version_path = (
-            f"LM-Transformer-{datetime.now().strftime('%d-%m_%H:%M:%S')}"
-        )
+    version_path = f"LM-Transformer-{datetime.now().strftime('%d-%m_%H:%M:%S')}"
 
     tb_logger = pl_loggers.TensorBoardLogger(
         save_dir=Path("."),
@@ -90,12 +86,12 @@ def main():
     )
 
     trainer = pl.Trainer(
-        accelerator='gpu',
+        accelerator="gpu",
         devices=[0],
         logger=tb_logger,
         callbacks=callbacks,
         max_epochs=30,
-        log_every_n_steps=1
+        log_every_n_steps=1,
     )
 
     pprint(config)
